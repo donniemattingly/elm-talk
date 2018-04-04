@@ -7,6 +7,7 @@ import List
 import Random
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
+import Time exposing (Time, every, second)
 
 
 main =
@@ -25,12 +26,13 @@ main =
 type alias Model =
     { dieFace : Int
     , circles : List (Svg Msg)
+    , generator : CircleGenerator
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 2 [], Cmd.none )
+    ( Model 2 [] defaultCircleGenerator, Cmd.none )
 
 
 
@@ -39,6 +41,7 @@ init =
 
 type Msg
     = Roll
+    | Tick Time
     | NewFace Int
     | GenCircle CircleGenerator
     | NewCircle Circle
@@ -49,6 +52,9 @@ update msg model =
     case msg of
         Roll ->
             ( model, Random.generate NewFace (Random.int 1 6) )
+
+        Tick time ->
+            update (GenCircle model.generator) model
 
         GenCircle generator ->
             ( model, Random.generate NewCircle generator )
@@ -70,7 +76,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    every second Tick
 
 
 view : Model -> Html Msg
