@@ -44,7 +44,7 @@ init =
 
 type Msg
     = Roll
-    | Tick Time
+      --| Tick Time
     | ToggleGeneration
     | NewFace Int
     | GenCircle CircleGenerator
@@ -58,26 +58,29 @@ update msg model =
             ( model, Random.generate NewFace (Random.int 1 6) )
 
         ToggleGeneration ->
-            ( { model | shouldGenerate = not model.shouldGenerate }, Cmd.none )
+            update (GenCircle model.generator) model
 
-        Tick time ->
-            if model.shouldGenerate then
-                update (GenCircle model.generator) model
+        --Tick time ->
+        --    ( model, Cmd.none )
+        GenCircle generator ->
+            if shouldKeepGenerating model.circles 0.19 then
+                ( model, Random.generate NewCircle generator )
             else
                 ( model, Cmd.none )
 
-        GenCircle generator ->
-            ( model, Random.generate NewCircle generator )
-
         NewCircle circle ->
             let
-                newCircle =
-                    getCircleWithColor circle model.circles
-
-                newCircles =
-                    newCircle :: model.circles
+                circleOverlaps =
+                    List.any (doCirclesOverlap circle) model.circles
             in
-            ( { model | circles = newCircles }, Cmd.none )
+            if circleOverlaps then
+                update (GenCircle model.generator) model
+            else
+                let
+                    newModel =
+                        { model | circles = circle :: model.circles }
+                in
+                update (GenCircle model.generator) newModel
 
         NewFace newFace ->
             ( { model | dieFace = newFace }, Cmd.none )
@@ -89,22 +92,25 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    every (200 * millisecond) Tick
+    Sub.none
+
+
+
+--every (1 * millisecond) Tick
 
 
 view : Model -> Html Msg
 view model =
     div []
         [ svg
-            [ width "500"
-            , height "500"
-            , viewBox "0 0 500 500"
+            [ width "900"
+            , height "900"
+            , viewBox "0 0 1200 1200"
             , fill "white"
             , stroke "black"
-            , strokeWidth "3"
             , Html.Attributes.style [ ( "padding-left", "20px" ), ( "padding-top", "20px" ) ]
             ]
-            (List.append [ rect [ x "1", y "1", width "400", height "400" ] [] ] (List.map circleToSvg model.circles))
+            (List.append [ rect [ x "1", y "1", width "900", height "900" ] [] ] (List.map circleToSvg model.circles))
         , button [ onClick ToggleGeneration ] [ Html.text "Toggle Generation" ]
         ]
 
@@ -130,8 +136,36 @@ circleGenerator minX maxX minY maxY minR maxR =
     Random.map3 colorlessCircle (Random.float minX maxX) (Random.float minY maxY) (Random.float minR maxR)
 
 
+
+--generateCircleWithSize : Circle -> Float -> Circle
+--genrateCircleWithSize spawn
+
+
 defaultCircleGenerator =
-    circleGenerator 21 379 21 379 15 20
+    circleGenerator 21 879 21 879 10 20
+
+
+getAreaForCircle : Circle -> Float
+getAreaForCircle circle =
+    0.5 * pi * circle.r ^ 2
+
+
+shouldKeepGenerating : List Circle -> Float -> Bool
+shouldKeepGenerating circles maxFillRatio =
+    let
+        maxArea =
+            900 * 900
+
+        currentArea =
+            List.map getAreaForCircle circles
+                |> List.sum
+
+        ratio =
+            currentArea / maxArea
+    in
+    log (toString ratio)
+        ratio
+        < maxFillRatio
 
 
 doCirclesOverlap : Circle -> Circle -> Bool
@@ -141,7 +175,7 @@ doCirclesOverlap c1 c2 =
             sqrt ((c2.x - c1.x) ^ 2 + (c2.y - c1.y) ^ 2)
 
         rhs =
-            c1.r + c2.r
+            c1.r + c2.r + 3
 
         overlap =
             lhs <= rhs
