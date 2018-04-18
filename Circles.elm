@@ -30,12 +30,13 @@ type alias Model =
     , shouldGenerate : Bool
     , circles : List Circle
     , generator : CircleGenerator
+    , shouldDraw : Bool
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 2 True [] defaultCircleGenerator, Cmd.none )
+    ( Model 2 True [] defaultCircleGenerator True, Cmd.none )
 
 
 
@@ -44,11 +45,11 @@ init =
 
 type Msg
     = Roll
-      --| Tick Time
     | ToggleGeneration
     | NewFace Int
     | GenCircle CircleGenerator
     | NewCircle Circle
+    | Draw
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -60,13 +61,14 @@ update msg model =
         ToggleGeneration ->
             update (GenCircle model.generator) model
 
-        --Tick time ->
-        --    ( model, Cmd.none )
         GenCircle generator ->
             if shouldKeepGenerating model.circles 0.19 then
                 ( model, Random.generate NewCircle generator )
             else
-                ( model, Cmd.none )
+                update Draw model
+
+        Draw ->
+            ( { model | shouldDraw = True }, Cmd.none )
 
         NewCircle circle ->
             let
@@ -110,9 +112,21 @@ view model =
             , stroke "black"
             , Html.Attributes.style [ ( "padding-left", "20px" ), ( "padding-top", "20px" ) ]
             ]
-            (List.append [ rect [ x "1", y "1", width "900", height "900" ] [] ] (List.map circleToSvg model.circles))
+            (getSvgCircles model)
         , button [ onClick ToggleGeneration ] [ Html.text "Toggle Generation" ]
         ]
+
+
+getSvgCircles : Model -> List (Svg Msg)
+getSvgCircles model =
+    let
+        bounds =
+            [ rect [ x "1", y "1", width "900", height "900" ] [] ]
+    in
+    if model.shouldDraw then
+        List.append bounds (List.map circleToSvg model.circles)
+    else
+        bounds
 
 
 type alias Circle =
@@ -136,13 +150,8 @@ circleGenerator minX maxX minY maxY minR maxR =
     Random.map3 colorlessCircle (Random.float minX maxX) (Random.float minY maxY) (Random.float minR maxR)
 
 
-
---generateCircleWithSize : Circle -> Float -> Circle
---genrateCircleWithSize spawn
-
-
 defaultCircleGenerator =
-    circleGenerator 21 879 21 879 10 20
+    circleGenerator 31 869 31 869 10 30
 
 
 getAreaForCircle : Circle -> Float
